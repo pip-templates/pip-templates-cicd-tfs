@@ -1,0 +1,164 @@
+{
+    "tasks": [
+        {
+            "environment": {},
+            "displayName": "Prepare kubectl config",
+            "alwaysRun": false,
+            "continueOnError": false,
+            "condition": "succeeded()",
+            "enabled": true,
+            "timeoutInMinutes": 0,
+            "inputs": {
+                "targetType": "inline",
+                "filePath": "",
+                "arguments": "",
+                "script": "#!/bin/bash\n\ncat > ./config <<EOL\napiVersion: v1\nclusters:\n- cluster:\n    certificate-authority-data: ${K8S_CERTIFICATE_AUTHORITY_DATA}\n    server: ${K8S_SERVER}\n  name: ${K8S_CLUSTER_NAME}\ncontexts:\n- context:\n    cluster: ${K8S_CLUSTER_NAME}\n    user: ${K8S_USER_NAME}\n  name: ${K8S_CONTEXT_NAME}\ncurrent-context: ${K8S_CONTEXT_NAME}\nkind: Config\npreferences: {}\nusers:\n- name:  ${K8S_USER_NAME}\n  user:\n    client-certificate-data: ${K8S_CLIENT_CERTIFICATE_DATA}\n    client-key-data: ${K8S_CLIENT_KEY_DATA1}${K8S_CLIENT_KEY_DATA2}\n    token: ${K8S_TOKEN}\nEOL\n",
+                "workingDirectory": "",
+                "failOnStderr": "false"
+            },
+            "task": {
+                "id": "6c731c3c-3c68-459a-a5c9-bde6e6595b5b",
+                "versionSpec": "3.*",
+                "definitionType": "task"
+            }
+        },
+        {
+            "environment": {},
+            "displayName": "Install prerequisites",
+            "alwaysRun": false,
+            "continueOnError": false,
+            "condition": "succeeded()",
+            "enabled": true,
+            "timeoutInMinutes": 0,
+            "inputs": {
+                "targetType": "inline",
+                "filePath": "",
+                "arguments": "",
+                "script": "#!/bin/bash\n\nset -e\nset -o pipefail\n\ncurl  -o jq -L https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64\n\nchmod +x jq\n\ncurl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl\n\nchmod +x ./kubectl\n\nsudo mv ./kubectl /usr/local/bin/kubectl\n\nmkdir ~/.kube\n\ncp -r ./config ~/.kube/\n\ncp -r '$(System.ArtifactsDirectory)/drop/drop/component.json' ./",
+                "workingDirectory": "",
+                "failOnStderr": "false"
+            },
+            "task": {
+                "id": "6c731c3c-3c68-459a-a5c9-bde6e6595b5b",
+                "versionSpec": "3.*",
+                "definitionType": "task"
+            }
+        },
+        {
+            "environment": {},
+            "displayName": "Upgrade",
+            "alwaysRun": false,
+            "continueOnError": false,
+            "condition": "succeeded()",
+            "enabled": true,
+            "timeoutInMinutes": 0,
+            "inputs": {
+                "targetType": "inline",
+                "filePath": "",
+                "arguments": "",
+                "script": "#!/bin/bash\n\nCOMPONENT=`grep -m1 name component.json | tr -d '\\r' | awk -F: '{ print $2 }' | sed 's/[\", ]//g'`\nVERSION=`grep -m1 version component.json | tr -d '\\r' | awk -F: '{ print $2 }' | sed 's/[\", ]//g'`\nBUILD_NUMBER=`grep -m1 build component.json | tr -d '\\r' | awk -F: '{ print $2 }' | sed 's/[\", ]//g'`\nDEPLOYMENT=`grep -m1 name component.json | tr -d '\\r' | awk -F: '{ print $2 }' | sed 's/[\", ]//g'`\nREGISTRY=`grep -m1 registry component.json | tr -d '\\r' | awk -F: '{ print $2 }' | sed 's/[\", ]//g'`\n\nIMAGE=\"${REGISTRY}/${COMPONENT}:${VERSION}-${BUILD_NUMBER}\"\n\nif [ ${HOST} == \"stage\" ]\nthen\n    IMAGE=\"${IMAGE}-rc\"\nfi\n\necho \"Starting to upgrade $COMPONENT to $BUILD_NUMBER on the $HOST cluster with deployment: $DEPLOYMENT and image: $IMAGE\"\n\n## Set image\nkubectl set image deployment ${DEPLOYMENT} ${COMPONENT}=${IMAGE} -n bb-integration",
+                "workingDirectory": "$(System.DefaultWorkingDirectory)/drop/drop",
+                "failOnStderr": "false"
+            },
+            "task": {
+                "id": "6c731c3c-3c68-459a-a5c9-bde6e6595b5b",
+                "versionSpec": "3.*",
+                "definitionType": "task"
+            }
+        },
+        {
+            "environment": {},
+            "displayName": "E2E test",
+            "alwaysRun": false,
+            "continueOnError": false,
+            "condition": "succeeded()",
+            "enabled": false,
+            "timeoutInMinutes": 0,
+            "inputs": {
+                "targetType": "inline",
+                "filePath": "",
+                "arguments": "",
+                "script": "# Clean and start new test\nkubectl delete -f e2etest.yaml\nkubectl create -f e2etest.yaml\n\ngetStatus() {\n   jobPodsJson=`kubectl get pods  --show-all --selector=job-name=${E2E_TEST_NAME} -a -o json`\n\n   state=`echo $jobPodsJson | jq '.items[].status.containerStatuses[0].state' || \"\"`\n   status=`echo $state | jq '.terminated.reason'`\n\n   exitCode=`echo $state | jq '.terminated.exitCode'`\n\n    echo \"Step...Status: ${status}. Exit code: ${exitCode}\"\n}\n\n# Loop\n\ngetStatus\n\nwhile [ \"${status}\" == \"null\" ]; do\n  getStatus\ndone\n\necho \"Job completed. Status: ${status}. Exit code: ${exitCode}\"\n\nkubectl delete -f e2etest.yaml\n\nexit $exitCode",
+                "workingDirectory": "",
+                "failOnStderr": "false"
+            },
+            "task": {
+                "id": "6c731c3c-3c68-459a-a5c9-bde6e6595b5b",
+                "versionSpec": "3.*",
+                "definitionType": "task"
+            }
+        },
+        {
+            "environment": {},
+            "displayName": "Promote on success",
+            "alwaysRun": false,
+            "continueOnError": false,
+            "condition": "succeeded()",
+            "enabled": true,
+            "timeoutInMinutes": 0,
+            "inputs": {
+                "targetType": "inline",
+                "filePath": "",
+                "arguments": "",
+                "script": "#!/bin/bash\n\nif [ ${HOST} == \"prod\" ]\nthen\n   exit 0\nfi\n\nVERSION=`grep -m1 version component.json | tr -d '\\r' | awk -F: '{ print $2 }' | sed 's/[\", ]//g'`\nBUILD_NUMBER=`grep -m1 build component.json | tr -d '\\r' | awk -F: '{ print $2 }' | sed 's/[\", ]//g'`\nREGISTRY=`grep -m1 registry component.json | tr -d '\\r' | awk -F: '{ print $2 }' | sed 's/[\", ]//g'`\nCOMPONENT=`grep -m1 name component.json | tr -d '\\r' | awk -F: '{ print $2 }' | sed 's/[\", ]//g'`\nIMAGE_NAME=\"${REGISTRY}/${COMPONENT}\"\n\necho $BUILD_NUMBER\necho $IMAGE_NAME\necho $VERSION\n\nPROD_IMAGE=\"${IMAGE_NAME}:${VERSION}-${BUILD_NUMBER}\"\nSTAGE_IMAGE=\"${IMAGE_NAME}:${VERSION}-${BUILD_NUMBER}-rc\"\nLATEST_IMAGE=\"${IMAGE_NAME}:latest\"\n\necho $PROD_IMAGE\necho $STAGE_IMAGE\n\n# Pull rc image and tag as prod image\ndocker login ${DOCKER_REGISTRY_SERVER} -u ${DOCKER_USER} -p ${DOCKER_PASS}\ndocker pull ${STAGE_IMAGE}\ndocker tag ${STAGE_IMAGE} ${PROD_IMAGE}\n\n# Push production image to azure container registry\ndocker push ${PROD_IMAGE}\n\n# Tag and push latest image\ndocker tag ${PROD_IMAGE} ${LATEST_IMAGE}\ndocker push ${LATEST_IMAGE}\n\n# Clean up\ndocker rmi ${STAGE_IMAGE} --force\ndocker rmi ${PROD_IMAGE} --force\ndocker image prune --force\n\n\n",
+                "workingDirectory": "$(System.DefaultWorkingDirectory)/drop/drop",
+                "failOnStderr": "false"
+            },
+            "task": {
+                "id": "6c731c3c-3c68-459a-a5c9-bde6e6595b5b",
+                "versionSpec": "3.*",
+                "definitionType": "task"
+            }
+        },
+        {
+            "environment": {},
+            "displayName": "Rollback on failure",
+            "alwaysRun": false,
+            "continueOnError": false,
+            "condition": "failed()",
+            "enabled": true,
+            "timeoutInMinutes": 0,
+            "inputs": {
+                "targetType": "inline",
+                "filePath": "",
+                "arguments": "",
+                "script": "#!/bin/bash\n\nDEPLOYMENT=`grep -m1 name component.json | tr -d '\\r' | awk -F: '{ print $2 }' | sed 's/[\", ]//g'`\n\nif [ ${HOST} == \"stage\" ]\nthen\n   kubectl rollout undo deployment/${DEPLOYMENT} \nfi\n\nif [ ${HOST} == \"prod\" ]\nthen\n  PREV_IMAGE=`kubectl rollout history deployment {{ DEPLOYMENT }} | tail -n 3 | head -n 1 | sed 's/[^0-9]//g'`\n  kubectl rollout undo deployment/${DEPLOYMENT}  --to-revision ${PREV_IMAGE}\nfi",
+                "workingDirectory": "$(System.DefaultWorkingDirectory)/Enterprise.Search(Hosted Linux)/drop",
+                "failOnStderr": "false"
+            },
+            "task": {
+                "id": "6c731c3c-3c68-459a-a5c9-bde6e6595b5b",
+                "versionSpec": "3.*",
+                "definitionType": "task"
+            }
+        }
+    ],
+    "runsOn": [
+        "Agent",
+        "DeploymentGroup"
+    ],
+    "revision": 6,
+    "id": "c3e99540-222e-409d-bd71-bfe1c4758dcd",
+    "name": "Microservice release tasks",
+    "version": {
+        "major": 1,
+        "minor": 0,
+        "patch": 0,
+        "isTest": false
+    },
+    "iconUrl": "https://cdn.vsassets.io/v/20180326T142816/_content/icon-meta-task.png",
+    "friendlyName": "Microservice release tasks",
+    "description": "",
+    "category": "Deploy",
+    "definitionType": "metaTask",
+    "demands": [],
+    "groups": [],
+    "inputs": [],
+    "satisfies": [],
+    "sourceDefinitions": [],
+    "dataSourceBindings": [],
+    "instanceNameFormat": "Task group: Microservice release tasks ",
+    "preJobExecution": {},
+    "execution": {},
+    "postJobExecution": {}
+}

@@ -1,0 +1,6 @@
+{
+    "name":  "azure-example-cicd",
+    "registry":  "example.azurecr.io",
+    "version":  "1.0.0",
+    "build":  "0"
+}

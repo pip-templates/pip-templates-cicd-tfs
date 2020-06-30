@@ -1,0 +1,158 @@
+{
+    "options": [
+        {
+            "enabled": false,
+            "definition": {
+                "id": "5d58cc01-7c75-450c-be18-a388ddb129ec"
+            },
+            "inputs": {
+                "branchFilters": "[\"+refs/heads/*\"]",
+                "additionalFields": "{}"
+            }
+        },
+        {
+            "enabled": false,
+            "definition": {
+                "id": "a9db38f9-9fdc-478c-b0f9-464221e58316"
+            },
+            "inputs": {
+                "workItemType": "Bug",
+                "assignToRequestor": "true",
+                "additionalFields": "{}"
+            }
+        }
+    ],
+    "triggers": [
+        {
+            "branchFilters": [
+                "+refs/heads/master"
+            ],
+            "pathFilters": [],
+            "batchChanges": false,
+            "maxConcurrentBuildsPerBranch": 1,
+            "pollingInterval": 0,
+            "triggerType": 2
+        }
+    ],
+    "variables": {
+        "system.debug": {
+            "value": "false",
+            "allowOverride": true
+        }
+    },
+    "variableGroups": [
+        {
+            "variables": {
+                "DOCKER_PASS": {
+                    "value": "XXXXXXXXXXX"
+                },
+                "DOCKER_REGISTRY_SERVER": {
+                    "value": "example.azurecr.io"
+                },
+                "DOCKER_USER": {
+                    "value": "XXXXXXXXXXX"
+                }
+            },
+            "type": "Vsts",
+            "name": "Docker credentials",
+            "id": 11
+        },
+        {
+            "variables": {
+                "NUGET_PASSWORD": {
+                    "value": "XXXXXXXXXXX"
+                },
+                "NUGET_SOURCE_NAME": {
+                    "value": "XXXXXXXXXXX"
+                },
+                "NUGET_SOURCE_URL": {
+                    "value": "https://example.com/index.json"
+                },
+                "NUGET_USERNAME": {
+                    "value": "XXXXXXXXXXX"
+                }
+            },
+            "type": "Vsts",
+            "name": "Nuget credentials",
+            "id": 26
+        }
+    ],
+    "retentionRules": [
+        {
+            "branches": [
+                "+refs/heads/*"
+            ],
+            "artifacts": [],
+            "artifactTypesToDelete": [
+                "FilePath",
+                "SymbolStore"
+            ],
+            "daysToKeep": 10,
+            "minimumToKeep": 1,
+            "deleteBuildRecord": true,
+            "deleteTestResults": true
+        }
+    ],
+    "properties": {},
+    "tags": [],
+    "jobAuthorizationScope": 1,
+    "jobTimeoutInMinutes": 60,
+    "jobCancelTimeoutInMinutes": 5,
+    "process": {
+        "phases": [
+            {
+                "steps": [
+                    {
+                        "environment": {},
+                        "enabled": true,
+                        "continueOnError": true,
+                        "alwaysRun": true,
+                        "displayName": "Task group: Microservice build tasks ",
+                        "timeoutInMinutes": 0,
+                        "condition": "succeededOrFailed()",
+                        "task": {
+                            "id": "37a9a713-4f78-43df-ac0f-85b84f3ee86a",
+                            "versionSpec": "1.*",
+                            "definitionType": "metaTask"
+                        },
+                        "inputs": {}
+                    }
+                ],
+                "name": "Build and Release",
+                "refName": "Phase_1",
+                "condition": "succeeded()",
+                "jobAuthorizationScope": 1,
+                "jobCancelTimeoutInMinutes": 1
+            }
+        ],
+        "type": 1
+    },
+    "repository": {
+        "properties": {
+            "cleanOptions": "0",
+            "labelSources": "0",
+            "labelSourcesFormat": "$(build.buildNumber)",
+            "reportBuildStatus": "true",
+            "gitLfsSupport": "false",
+            "skipSyncSource": "false",
+            "checkoutNestedSubmodules": "false",
+            "fetchDepth": "0"
+        },
+        "id": "b9d3a48d-c428-4880-abfe-281653802fd6",
+        "type": "TfsGit",
+        "name": "Azure.Example.CI",
+        "url": "https://example.com",
+        "defaultBranch": "refs/heads/master",
+        "clean": "false",
+        "checkoutSubmodules": false
+    },
+    "processParameters": {},
+    "quality": 1,
+    "drafts": [],
+    "id": 256,
+    "name": "Azure.Example.CI",
+    "path": "\\",
+    "type": 2,
+    "queueStatus": 0,
+    "revision": 2
+}
