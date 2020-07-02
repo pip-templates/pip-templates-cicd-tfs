@@ -1,3 +1,11 @@
+# Overview
+
+This is template for Azure TFS pipeline for .NET Core microservice. View dockerfiles in [Dockerization template](https://github.com/pip-templates/pip-templates-microservice-dockerization).
+
+# Usage
+
+Copy component.json and *.ps1 scripts to microservice folder and import Build scripts (Azure.Example.CI.json and Azure.Microservice_build_tasks) and Release scripts (Azure.Example.Deploy and Azure.Microservice_release_tasks) to Azure TFS
+
 # Settings
 
 Required environment variables:
